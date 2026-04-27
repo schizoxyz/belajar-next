@@ -3,133 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Data Transaksi</title>
+    <title>Kirim Pesan Supabase</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
+        input { width: 80%; padding: 10px; margin-bottom: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #3ecf8e; border: none; color: white; border-radius: 5px; }
+        .pesan-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        small { color: #888; }
+    </style>
 </head>
-<body class="bg-gray-100 p-4 md:p-8">
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-bold mb-4 text-gray-800">Input Data Baru</h2>
-            <form id="dataForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="pin" placeholder="PIN (4 Digit)" maxlength="4" pattern="\[0-9]*" class="border p-2 rounded" required>
-                <input type="text" id="nama" placeholder="Nama Pemilik Akun" class="border p-2 rounded" required>
-                <div class="flex flex-col">
-                    <label class="text-xs text-gray-500">Tanggal Transaksi</label>
-                    <input type="date" id="tgl_transaksi" class="border p-2 rounded" required>
-                </div>
-                <div class="flex flex-col">
-                    <label class="text-xs text-gray-500">Masa Berlaku</label>
-                    <input type="date" id="tgl_berlaku" class="border p-2 rounded" required>
-                </div>
-                <input type="text" id="info_login" placeholder="Informasi Login" class="border p-2 rounded md:col-span-2">
-                <input type="password" id="sandi" placeholder="Kata Sandi" class="border p-2 rounded md:col-span-2">
-                
-                <button type="submit" class="md:col-span-2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Simpan Data</button>
-            </form>
-        </div>
+<body>
 
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <table class="min-w-full leading-normal">
-                <thead>
-                    <tr class="bg-gray-800 text-white text-left text-xs uppercase tracking-wider">
-                        <th class="px-5 py-3">Pemilik/PIN</th>
-                        <th class="px-5 py-3">Masa Aktif</th>
-                        <th class="px-5 py-3">Akses</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody" class="text-sm">
-                    </tbody>
-            </table>
-        </div>
-    </div>
+    <h2>Kirim Pesan</h2>
+    <input type="text" id="inputPesan" placeholder="Tulis sesuatu...">
+    <button onclick="kirimPesan()">Kirim</button>
+
+    <hr>
+
+    <h3>Daftar Pesan</h3>
+    <div id="daftarPesan">Memuat pesan...</div>
 
     <script>
-        // Konfigurasi Menggunakan Variabel Lingkungan (Vercel)
-        // Saat deploy di Vercel, ganti string kosong ini dengan process.env di script build 
-        // atau biarkan kosong dan isi melalui dashboard Vercel
-        const SUPABASE_URL = window.location.hostname === 'localhost' ? '' : 'YOUR_SUPABASE_URL';
-        const SUPABASE_KEY = window.location.hostname === 'localhost' ? '' : 'YOUR_SUPABASE_ANON_KEY';
-
+        // KONFIGURASI SUPABASE (Ganti dengan milik Anda)
+        const SUPABASE_URL = 'URL_PROJECT_ANDA';
+        const SUPABASE_KEY = 'ANON_KEY_ANDA';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const form = document.getElementById('dataForm');
-        const tableBody = document.getElementById('tableBody');
+        // 1. FUNGSI KIRIM PESAN
+        async function kirimPesan() {
+            const teks = document.getElementById('inputPesan').value;
+            if (!teks) return alert("Pesan tidak boleh kosong!");
 
-        // Fungsi hitung sisa hari
-        function hitungSisa(tglBerlaku) {
-            const hariIni = new Date();
-            const akhir = new Date(tglBerlaku);
-            const selisih = Math.ceil((akhir - hariIni) / (1000 * 60 * 60 * 24));
-            return {
-                hari: selisih,
-                status: selisih > 0 ? 'Aktif' : 'Expired',
-                warna: selisih > 0 ? 'text-green-600' : 'text-red-600'
-            };
-        }
+            const { error } = await supabase
+                .from('pesan_user')
+                .insert([{ isi_pesan: teks }]);
 
-        // Fungsi Salin Teks
-        async function salinTeks(teks, label) {
-            try {
-                await navigator.clipboard.writeText(teks);
-                alert(label + ' berhasil disalin!');
-            } catch (err) {
-                alert('Gagal menyalin teks');
+            if (error) {
+                console.error("Gagal kirim:", error);
+            } else {
+                document.getElementById('inputPesan').value = '';
+                ambilPesan(); // Refresh daftar setelah kirim
             }
         }
 
-        // Ambil Data
-        async function fetchContent() {
+        // 2. FUNGSI AMBIL & TAMPILKAN PESAN
+        async function ambilPesan() {
             const { data, error } = await supabase
-                .from('transaksi_pengguna')
+                .from('pesan_user')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) console.error(error);
+            const kontainer = document.getElementById('daftarPesan');
             
-            tableBody.innerHTML = '';
-            data.forEach(item => {
-                const sisa = hitungSisa(item.masa_berlaku);
-                tableBody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="px-5 py-4">
-                            <p class="font-bold">${item.nama_pemilik}</p>
-                            <p class="text-xs text-gray-500">PIN: ${item.pin}</p>
-                        </td>
-                        <td class="px-5 py-4 text-xs">
-                            <p>${item.tanggal_transaksi} s/d ${item.masa_berlaku}</p>
-                            <p class="font-bold ${sisa.warna}">${sisa.hari} Hari (${sisa.status})</p>
-                        </td>
-                        <td class="px-5 py-4 space-y-2">
-                            <button onclick="salinTeks('${item.informasi_login}', 'Info Login')" class="block w-full bg-gray-200 text-[10px] p-1 rounded hover:bg-gray-300">Salin Info</button>
-                            <button onclick="salinTeks('${item.kata_sandi}', 'Kata Sandi')" class="block w-full bg-blue-100 text-blue-700 text-[10px] p-1 rounded hover:bg-blue-200">Salin Sandi</button>
-                        </td>
-                    </tr>
-                `;
-            });
+            if (error) {
+                kontainer.innerHTML = "Gagal memuat data.";
+                return;
+            }
+
+            kontainer.innerHTML = data.map(p => `
+                <div class="pesan-item">
+                    <p>${p.isi_pesan}</p>
+                    <small>${new Date(p.created_at).toLocaleString('id-ID')}</small>
+                </div>
+            `).join('');
         }
 
-        // Simpan Data
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                pin: document.getElementById('pin').value,
-                nama_pemilik: document.getElementById('nama').value,
-                tanggal_transaksi: document.getElementById('tgl_transaksi').value,
-                masa_berlaku: document.getElementById('tgl_berlaku').value,
-                informasi_login: document.getElementById('info_login').value,
-                kata_sandi: document.getElementById('sandi').value
-            };
-
-            const { error } = await supabase.from('transaksi_pengguna').insert([payload]);
-            if (error) alert('Gagal menyimpan: ' + error.message);
-            else {
-                form.reset();
-                fetchContent();
-            }
-        });
-
-        fetchContent();
+        // Jalankan fungsi ambil data saat halaman dibuka
+        ambilPesan();
     </script>
 </body>
 </html>
