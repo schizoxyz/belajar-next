@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Data Akun</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50 p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Input Data Baru</h2>
+            <form id="accountForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="pin" placeholder="PIN (4 Digit)" maxlength="4" pattern="\d*" class="border p-2 rounded" required>
+                <input type="text" id="nama" placeholder="Nama Pemilik" class="border p-2 rounded" required>
+                <div class="flex flex-col">
+                    <label class="text-xs text-gray-500">Tanggal Pembelian</label>
+                    <input type="date" id="tglBeli" class="border p-2 rounded" required>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-xs text-gray-500">Tanggal Kedaluwarsa</label>
+                    <input type="date" id="tglExp" class="border p-2 rounded" required>
+                </div>
+                <input type="text" id="userLogin" placeholder="Username/Login" class="border p-2 rounded col-span-1 md:col-span-1">
+                <input type="text" id="passLogin" placeholder="Sandi" class="border p-2 rounded col-span-1 md:col-span-1">
+                <button type="submit" class="md:col-span-2 bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">Simpan Data</button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="p-3 border">PIN</th>
+                        <th class="p-3 border">Pemilik</th>
+                        <th class="p-3 border">Beli / Exp</th>
+                        <th class="p-3 border">Sisa Hari</th>
+                        <th class="p-3 border">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow-lg hidden">Teks berhasil disalin!</div>
+
+    <script>
+        // Konfigurasi Supabase (Menggunakan Environment Variables di Vercel)
+        const supabaseUrl = window.location.hostname === 'localhost' ? 'YOUR_URL' : 'process.env.SUPABASE_URL'; 
+        const supabaseKey = window.location.hostname === 'localhost' ? 'YOUR_KEY' : 'process.env.SUPABASE_KEY';
+        
+        // Catatan: Di Client-side JS murni, kita biasanya memanggil config dari window env atau langsung.
+        // Untuk Vercel, pastikan Anda mengganti string di bawah ini dengan URL & Key asli Anda atau gunakan sistem build.
+        const _supabase = supabase.createClient('https://YOUR_PROJECT_ID.supabase.co', 'YOUR_ANON_KEY');
+
+        const form = document.getElementById('accountForm');
+        const tableBody = document.getElementById('tableBody');
+
+        // Fungsi Hitung Sisa Hari
+        function getStatus(expDate) {
+            const now = new Date();
+            const end = new Date(expDate);
+            const diffTime = end - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) return `<span class="text-red-500 font-bold">Expired (${diffDays} hari)</span>`;
+            if (diffDays <= 7) return `<span class="text-orange-500 font-bold">${diffDays} hari lagi</span>`;
+            return `<span class="text-green-600">${diffDays} hari</span>`;
+        }
+
+        // Fungsi Salin Teks
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2000);
+            });
+        }
+
+        // Ambil Data
+        async function fetchData() {
+            const { data, error } = await _supabase.from('data_akun').select('*').order('created_at', { ascending: false });
+            if (error) console.error(error);
+            
+            tableBody.innerHTML = '';
+            data.forEach(item => {
+                tableBody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 border font-mono">${item.pin}</td>
+                        <td class="p-3 border font-semibold">${item.nama_pemilik}</td>
+                        <td class="p-3 border text-xs">${item.tanggal_pembelian} / ${item.tanggal_kedaluwarsa}</td>
+                        <td class="p-3 border font-medium">${getStatus(item.tanggal_kedaluwarsa)}</td>
+                        <td class="p-3 border space-x-2">
+                            <button onclick="copyText('${item.username_login}')" class="text-blue-500 underline text-sm">User</button>
+                            <button onclick="copyText('${item.sandi_login}')" class="text-blue-500 underline text-sm">Sandi</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Simpan Data
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                pin: document.getElementById('pin').value,
+                nama_pemilik: document.getElementById('nama').value,
+                tanggal_pembelian: document.getElementById('tglBeli').value,
+                tanggal_kedaluwarsa: document.getElementById('tglExp').value,
+                username_login: document.getElementById('userLogin').value,
+                sandi_login: document.getElementById('passLogin').value
+            };
+
+            const { error } = await _supabase.from('data_akun').insert([payload]);
+            if (error) alert('Gagal menyimpan data');
+            else {
+                form.reset();
+                fetchData();
+            }
+        });
+
+        fetchData();
+    </script>
+</body>
+</html>
