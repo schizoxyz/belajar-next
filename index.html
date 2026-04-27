@@ -3,31 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pesan Singkat</title>
+    <title>Pesan Sederhana</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
-        .input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 2rem; }
-        input, textarea, button { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #3ecf8e; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #34b27b; }
-        .message-card { border-bottom: 1px solid #eee; padding: 10px 0; }
-        .meta { font-size: 0.8rem; color: #888; }
+        body { font-family: sans-serif; max-width: 500px; margin: 20px auto; padding: 10px; }
+        #chat-box { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+        .msg { margin-bottom: 8px; padding: 5px; background: #f4f4f4; border-radius: 4px; }
+        .username { font-weight: bold; color: #2c3e50; }
+        input, button { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; }
+        button { background: #3ecf8e; border: none; color: white; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <h2>Kirim Pesan</h2>
-    <div class="input-group">
-        <input type="text" id="author" placeholder="Nama Anda (opsional)">
-        <textarea id="content" placeholder="Tulis pesan di sini..." required></textarea>
-        <button onclick="kirimPesan()" id="btnKirim">Kirim</button>
-    </div>
+    <div id="chat-box">Memuat pesan...</div>
 
-    <hr>
-
-    <h3>Daftar Pesan</h3>
-    <div id="pesan-container">Memuat pesan...</div>
+    <input type="text" id="username" placeholder="Nama Anda">
+    <input type="text" id="content" placeholder="Tulis pesan...">
+    <button onclick="sendMessage()">Kirim</button>
 
     <script>
         // KONFIGURASI SUPABASE
@@ -35,60 +29,49 @@
         const SUPABASE_KEY = 'ANON_KEY_ANDA';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const container = document.getElementById('pesan-container');
+        const chatBox = document.getElementById('chat-box');
 
-        // Fungsi mengambil pesan dari database
-        async function ambilPesan() {
+        // Fungsi mengambil pesan
+        async function fetchMessages() {
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: true });
 
-            if (error) {
-                container.innerHTML = "Gagal memuat pesan.";
-                return;
+            if (error) console.error('Error:', error);
+            else {
+                chatBox.innerHTML = data.map(m => `
+                    <div class="msg">
+                        <span class="username">${m.username}:</span> ${m.content}
+                    </div>
+                `).join('');
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
-
-            container.innerHTML = data.length ? '' : 'Belum ada pesan.';
-            data.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'message-card';
-                div.innerHTML = `
-                    <strong>${msg.author || 'Anonim'}</strong>: ${msg.content}
-                    <div class="meta">${new Date(msg.created_at).toLocaleString('id-ID')}</div>
-                `;
-                container.appendChild(div);
-            });
         }
 
-        // Fungsi mengirim pesan baru
-        async function kirimPesan() {
-            const author = document.getElementById('author').value;
+        // Fungsi mengirim pesan
+        async function sendMessage() {
+            const username = document.getElementById('username').value;
             const content = document.getElementById('content').value;
-            const btn = document.getElementById('btnKirim');
 
-            if (!content) return alert("Isi pesan tidak boleh kosong!");
-
-            btn.disabled = true;
-            btn.innerText = "Mengirim...";
+            if (!username || !content) return alert("Isi semua bidang!");
 
             const { error } = await supabase
                 .from('messages')
-                .insert([{ author: author || 'Anonim', content: content }]);
+                .insert([{ username, content }]);
 
-            if (error) {
-                alert("Gagal mengirim: " + error.message);
-            } else {
+            if (error) alert("Gagal mengirim!");
+            else {
                 document.getElementById('content').value = '';
-                ambilPesan(); // Refresh daftar pesan
+                fetchMessages();
             }
-
-            btn.disabled = false;
-            btn.innerText = "Kirim";
         }
 
-        // Jalankan saat halaman dibuka
-        ambilPesan();
+        // Jalankan saat pertama kali dibuka
+        fetchMessages();
+
+        // (Opsional) Refresh otomatis setiap 5 detik
+        setInterval(fetchMessages, 5000);
     </script>
 </body>
 </html>
