@@ -3,145 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Data Supabase</title>
+    <title>Manajemen Data Transaksi</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Input Data Baru</h2>
+            <form id="dataForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="pin" placeholder="PIN (4 Digit)" maxlength="4" pattern="\[0-9]*" class="border p-2 rounded" required>
+                <input type="text" id="nama" placeholder="Nama Pemilik Akun" class="border p-2 rounded" required>
+                <div class="flex flex-col">
+                    <label class="text-xs text-gray-500">Tanggal Transaksi</label>
+                    <input type="date" id="tgl_transaksi" class="border p-2 rounded" required>
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-xs text-gray-500">Masa Berlaku</label>
+                    <input type="date" id="tgl_berlaku" class="border p-2 rounded" required>
+                </div>
+                <input type="text" id="info_login" placeholder="Informasi Login" class="border p-2 rounded md:col-span-2">
+                <input type="password" id="sandi" placeholder="Kata Sandi" class="border p-2 rounded md:col-span-2">
+                
+                <button type="submit" class="md:col-span-2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Simpan Data</button>
+            </form>
+        </div>
 
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Input Data Baru</h2>
-        
-        <form id="dataForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700">PIN (4 Digit)</label>
-                <input type="text" id="pin" maxlength="4" pattern="\d{4}" required class="mt-1 block w-full border border-gray-300 rounded-md p-2" placeholder="1234">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Nama Pemilik</label>
-                <input type="text" id="nama" required class="mt-1 block w-full border border-gray-300 rounded-md p-2">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Tanggal Transaksi</label>
-                <input type="date" id="tgl_transaksi" required class="mt-1 block w-full border border-gray-300 rounded-md p-2">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Masa Berlaku</label>
-                <input type="date" id="tgl_berlaku" required class="mt-1 block w-full border border-gray-300 rounded-md p-2">
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Informasi Login</label>
-                <textarea id="info_login" class="mt-1 block w-full border border-gray-300 rounded-md p-2"></textarea>
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Kata Sandi</label>
-                <input type="text" id="password" class="mt-1 block w-full border border-gray-300 rounded-md p-2">
-            </div>
-            <button type="submit" class="md:col-span-2 bg-blue-600 text-white font-bold py-2 rounded-md hover:bg-blue-700 transition">Simpan Data</button>
-        </form>
-    </div>
-
-    <div class="max-w-4xl mx-auto mt-10">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Daftar Data Terimpan</h2>
-        <div id="loading" class="text-center py-4">Memuat data...</div>
-        <div id="cardContainer" class="grid grid-cols-1 gap-4">
-            </div>
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <table class="min-w-full leading-normal">
+                <thead>
+                    <tr class="bg-gray-800 text-white text-left text-xs uppercase tracking-wider">
+                        <th class="px-5 py-3">Pemilik/PIN</th>
+                        <th class="px-5 py-3">Masa Aktif</th>
+                        <th class="px-5 py-3">Akses</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="text-sm">
+                    </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
-        // Gunakan Variabel Lingkungan Vercel
-        // Jika dijalankan lokal, ganti string di bawah dengan URL/Key asli Anda
-        const SUPABASE_URL = window.location.hostname === 'localhost' ? 'URL_SUPABASE_ANDA' : ''; 
-        const SUPABASE_KEY = window.location.hostname === 'localhost' ? 'KEY_ANON_SUPABASE_ANDA' : '';
+        // Konfigurasi Menggunakan Variabel Lingkungan (Vercel)
+        // Saat deploy di Vercel, ganti string kosong ini dengan process.env di script build 
+        // atau biarkan kosong dan isi melalui dashboard Vercel
+        const SUPABASE_URL = window.location.hostname === 'localhost' ? '' : 'YOUR_SUPABASE_URL';
+        const SUPABASE_KEY = window.location.hostname === 'localhost' ? '' : 'YOUR_SUPABASE_ANON_KEY';
 
-        // Inisialisasi Supabase
-        // Catatan: Di Vercel, kita akan menyuntikkan ini via script atau proxy jika ingin lebih aman
-        // Namun untuk file tunggal sederhana, pastikan Env Vars diatur di dashboard Vercel.
-        const supabase = collections = supabase.createClient(
-            '<%= process.env.SUPABASE_URL %>', 
-            '<%= process.env.SUPABASE_ANON_KEY %>'
-        );
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const form = document.getElementById('dataForm');
+        const tableBody = document.getElementById('tableBody');
 
         // Fungsi hitung sisa hari
-        function hitungSisaHari(tglSelesai) {
+        function hitungSisa(tglBerlaku) {
             const hariIni = new Date();
-            const target = new Date(tglSelesai);
-            const diffTime = target - hariIni;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays <= 0) return { hari: 0, status: 'Expired', color: 'text-red-600' };
-            return { hari: diffDays, status: 'Aktif', color: 'text-green-600' };
+            const akhir = new Date(tglBerlaku);
+            const selisih = Math.ceil((akhir - hariIni) / (1000 * 60 * 60 * 24));
+            return {
+                hari: selisih,
+                status: selisih > 0 ? 'Aktif' : 'Expired',
+                warna: selisih > 0 ? 'text-green-600' : 'text-red-600'
+            };
         }
 
-        // Fungsi salin teks
-        async function salinTeks(teks) {
+        // Fungsi Salin Teks
+        async function salinTeks(teks, label) {
             try {
                 await navigator.clipboard.writeText(teks);
-                alert('Teks berhasil disalin!');
+                alert(label + ' berhasil disalin!');
             } catch (err) {
-                alert('Gagal menyalin teks.');
+                alert('Gagal menyalin teks');
             }
         }
 
         // Ambil Data
-        async function fetchData() {
-            const { data, error } = await supabase.from('data_pengguna').select('*').order('created_at', { ascending: false });
-            const container = document.getElementById('cardContainer');
-            const loader = document.getElementById('loading');
-            
-            loader.style.display = 'none';
-            container.innerHTML = '';
+        async function fetchContent() {
+            const { data, error } = await supabase
+                .from('transaksi_pengguna')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-            if (data) {
-                data.forEach(item => {
-                    const masa = hitungSisaHari(item.masa_berlaku);
-                    const card = `
-                        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 flex flex-col md:flex-row justify-between items-start md:items-center">
-                            <div class="flex-1">
-                                <h3 class="font-bold text-lg">${item.nama_pemilik} <span class="text-sm font-normal text-gray-500">(${item.pin})</span></h3>
-                                <p class="text-xs text-gray-500">Transaksi: ${item.tanggal_transaksi} | Exp: ${item.masa_berlaku}</p>
-                                <p class="font-semibold ${masa.color}">${masa.hari} Hari Lagi (${masa.status})</p>
-                            </div>
-                            <div class="mt-4 md:mt-0 flex gap-2">
-                                <button onclick="salinTeks('${item.info_login}')" class="bg-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-300">Salin Info</button>
-                                <button onclick="salinTeks('${item.kata_sandi}')" class="bg-indigo-500 text-white px-3 py-1 rounded text-sm hover:bg-indigo-600">Salin Sandi</button>
-                            </div>
-                        </div>
-                    `;
-                    container.innerHTML += card;
-                });
-            }
+            if (error) console.error(error);
+            
+            tableBody.innerHTML = '';
+            data.forEach(item => {
+                const sisa = hitungSisa(item.masa_berlaku);
+                tableBody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="px-5 py-4">
+                            <p class="font-bold">${item.nama_pemilik}</p>
+                            <p class="text-xs text-gray-500">PIN: ${item.pin}</p>
+                        </td>
+                        <td class="px-5 py-4 text-xs">
+                            <p>${item.tanggal_transaksi} s/d ${item.masa_berlaku}</p>
+                            <p class="font-bold ${sisa.warna}">${sisa.hari} Hari (${sisa.status})</p>
+                        </td>
+                        <td class="px-5 py-4 space-y-2">
+                            <button onclick="salinTeks('${item.informasi_login}', 'Info Login')" class="block w-full bg-gray-200 text-[10px] p-1 rounded hover:bg-gray-300">Salin Info</button>
+                            <button onclick="salinTeks('${item.kata_sandi}', 'Kata Sandi')" class="block w-full bg-blue-100 text-blue-700 text-[10px] p-1 rounded hover:bg-blue-200">Salin Sandi</button>
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
-        // Submit Form
-        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+        // Simpan Data
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true;
-            btn.innerText = 'Menyimpan...';
-
             const payload = {
                 pin: document.getElementById('pin').value,
                 nama_pemilik: document.getElementById('nama').value,
                 tanggal_transaksi: document.getElementById('tgl_transaksi').value,
                 masa_berlaku: document.getElementById('tgl_berlaku').value,
-                info_login: document.getElementById('info_login').value,
-                kata_sandi: document.getElementById('password').value
+                informasi_login: document.getElementById('info_login').value,
+                kata_sandi: document.getElementById('sandi').value
             };
 
-            const { error } = await supabase.from('data_pengguna').insert([payload]);
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                e.target.reset();
-                fetchData();
+            const { error } = await supabase.from('transaksi_pengguna').insert([payload]);
+            if (error) alert('Gagal menyimpan: ' + error.message);
+            else {
+                form.reset();
+                fetchContent();
             }
-            btn.disabled = false;
-            btn.innerText = 'Simpan Data';
         });
 
-        fetchData();
+        fetchContent();
     </script>
 </body>
 </html>
